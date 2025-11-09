@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decode the Author — Noir</title>
+<style>
+  /* ——— Neo-Noir Aesthetic ——— */
+  :root{
+    --bg:#0a0c10; --layer:#0d1016; --ink:#e6e6e6; --muted:#98a2b3;
+    --gold:#d4af37; --blue:#46a0ff; --green:#32d17e; --red:#ff4d5a; --yellow:#ffd166;
+    --ring:#263244;
+  }
+  html,body{margin:0;height:100%;background:radial-gradient(1200px 700px at 50% -20%,#10141c, var(--bg));color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  .grain:before{
+    content:"";position:fixed;inset:0;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size:3px 3px;mix-blend-mode:overlay;opacity:.35;filter:contrast(1.2) brightness(.95);
+  }
+  .wrap{max-width:1100px;margin:24px auto;padding:16px}
+  .titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .reel{width:14px;height:14px;border-radius:50%;background:linear-gradient(180deg,#f4e08c,var(--gold));box-shadow:0 0 12px rgba(212,175,55,.55)}
+  .brand h1{font-size:18px;letter-spacing:.14em;text-transform:uppercase;margin:0;color:var(--gold)}
+  .topic input{width:100%;padding:12px 14px;border:1px solid var(--ring);border-radius:12px;background:linear-gradient(180deg,#0c1016,#0a0d12);color:var(--ink);outline:none}
+  .topic input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.15)}
+  .hud{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:8px}
+  .card{position:relative;border:1px solid var(--ring);border-radius:16px;padding:12px;background:linear-gradient(180deg,#0f131a,#0c1016);overflow:hidden}
+  .beam{position:absolute;inset:-40% -40% auto;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.35;filter:blur(1px)}
+  .tag{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#cfd3da;display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .b{color:var(--blue)} .g{color:var(--green)} .r{color:var(--red)} .y{color:var(--yellow)}
+  .b .dot{background:var(--blue)} .g .dot{background:var(--green)} .r .dot{background:var(--red)} .y .dot{background:var(--yellow)}
+  textarea{width:100%;min-height:90px;margin-top:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#0a0d12;color:#e5e7eb;resize:vertical}
+  .row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .btn{cursor:pointer;border:1px solid var(--ring);background:#0b1016;color:#e5e7eb;
+       border-radius:12px;padding:10px 12px;font-weight:600}
+  .btn:hover{border-color:#3a475a}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700;color:#cbd5e1}
+  .pulse{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 0 rgba(212,175,55,0.6);background:var(--gold)}
+  .pulsing{animation:pulse 0.81s infinite ease-out} /* ~74 bpm */
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(212,175,55,.7)}70%{box-shadow:0 0 0 14px rgba(212,175,55,0)}100%{box-shadow:0 0 0 0 rgba(212,175,55,0)}}
+  .panel{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:16px}
+  .rec{border:1px dashed #3a475a;border-radius:16px;padding:14px;background:linear-gradient(180deg,#0e1219,#0b0f15)}
+  .small{font-size:12px;color:var(--muted)}
+  .rec-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .live{color:#ef4444}
+  .xp{border:1px solid var(--ring);border-radius:12px;padding:10px;background:#0a0d12}
+  .bar{height:10px;background:#1f2937;border-radius:9999px;overflow:hidden}
+  .fill{height:100%;width:0%;background:linear-gradient(90deg,#8b5cf6,#22d3ee,#d4af37);box-shadow:0 0 12px rgba(212,175,55,.5) inset}
+  .level{margin-top:8px;font-size:12px;color:#d1d5db}
+  .footer{display:flex;justify-content:space-between;align-items:center;margin:16px 0}
+  .stack{display:flex;gap:8px;flex-wrap:wrap}
+  .poster-preview{border:1px solid var(--ring);border-radius:16px;overflow:hidden;background:#0a0c10}
+  .poster-preview canvas{display:block;width:100%}
+  .choice{display:flex;gap:10px;margin-top:8px}
+  .filmline{height:1px;background:linear-gradient(90deg,transparent,#2b3546,transparent);margin:10px 0}
+  .player{border:1px solid var(--ring);border-radius:16px;overflow:hidden;background:#0b1016}
+  .player h2{font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin:10px;color:#cfd3da}
+  @media(max-width:1020px){.hud{grid-template-columns:1fr 1fr}.panel{grid-template-columns:1fr}}
+  @media(max-width:640px){.hud{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+  <div class="titlebar">
+    <div class="brand"><span class="reel"></span><h1>Decode the Author</h1></div>
+    <div class="topic" style="flex:1"><input id="topic" placeholder="TRACK TITLE (e.g., Spaced Retrieval)"></div>
+  </div>
+
+  <!-- Embedded Spotify Player -->
+  <div class="player" style="margin-bottom:14px">
+    <h2>Lo-Fi Playlist</h2>
+    <iframe style="border-radius:16px" src="https://open.spotify.com/embed/playlist/1QC9tv5XLJUiNYW2nrmkCF?utm_source=generator"
+      width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+  </div>
+
+  <div class="hud">
+    <section class="card" data-key="blue">
+      <div class="beam"></div>
+      <div class="tag b"><span class="dot"></span> Main Idea — how the author starts</div>
+      <div class="row">
+        <span class="pulse" id="pulse-blue"></span>
+        <button class="btn t" data-t="60" data-for="blue">🕐 60s READ</button>
+        <span class="timer" id="clock-blue">00:00</span>
+      </div>
+      <textarea id="note-blue" placeholder="3–7 words (e.g., explains why retrieval beats rereading)"></textarea>
+    </section>
+
+    <section class="card" data-key="green">
+      <div class="beam"></div>
+      <div class="tag g"><span class="dot"></span> Proof — how they show / prove</div>
+      <div class="row">
+        <span class="pulse" id="pulse-green"></span>
+        <button class="btn t" data-t="90" data-for="green">🕐 90s RECALL</button>
+        <span class="timer" id="clock-green">00:00</span>
+      </div>
+      <textarea id="note-green" placeholder="Example or fact (e.g., delayed recall strengthens routes)"></textarea>
+    </section>
+
+    <section class="card" data-key="red">
+      <div class="beam"></div>
+      <div class="tag r"><span class="dot"></span> Contrast — where it flips</div>
+      <div class="row">
+        <span class="pulse" id="pulse-red"></span>
+        <button class="btn t" data-t="45" data-for="red">🕐 45s FLIP</button>
+        <span class="timer" id="clock-red">00:00</span>
+      </div>
+      <textarea id="note-red" placeholder="Not this / the twist (e.g., cramming looks good but fades)"></textarea>
+    </section>
+
+    <section class="card" data-key="yellow">
+      <div class="beam"></div>
+      <div class="tag y"><span class="dot"></span> Why it matters — impact</div>
+      <div class="row">
+        <span class="pulse" id="pulse-yellow"></span>
+        <button class="btn t" data-t="45" data-for="yellow">🕐 45s WRAP</button>
+        <span class="timer" id="clock-yellow">00:00</span>
+      </div>
+      <textarea id="note-yellow" placeholder="Why care (e.g., harder now → longer retention)"></textarea>
+    </section>
+  </div>
+
+  <div class="panel">
+    <section class="rec">
+      <div class="tag"><span id="rec-dot" class="dot" style="background:#64748b"></span> Voice Note — say the function</div>
+      <div class="small">Prompt: “The author <b>explains</b> ___, <b>proves</b> it by ___, <b>contrasts</b> with ___, and it <b>matters</b> because ___.”</div>
+      <div class="rec-controls">
+        <button id="rec-start" class="btn">🎙 Start</button>
+        <button id="rec-stop" class="btn" disabled>■ Stop & Save</button>
+        <span id="rec-status" class="small">Ready</span>
+      </div>
+      <div id="audio-list" class="small" style="margin-top:8px"></div>
+    </section>
+
+    <section class="xp">
+      <div class="tag" style="color:var(--gold)">XP — Story Mixer</div>
+      <div class="bar" style="margin-top:8px"><div id="xp-fill" class="fill"></div></div>
+      <div id="level" class="level">Level 1 — Intern Critic</div>
+      <div class="filmline"></div>
+      <div class="stack">
+        <button id="finish" class="btn">🎬 Build Crash-Out Card</button>
+        <div class="choice">
+          <button id="done" class="btn">👍 Done</button>
+          <button id="done-done" class="btn">🔥 Done-Done</button>
+        </div>
+        <div class="stack">
+          <button id="save-json" class="btn">💾 Save Notes (.json)</button>
+          <button id="save-png" class="btn">🖼 Save Poster (PNG)</button>
+          <button id="print-pdf" class="btn">🖨 Print/Save as PDF</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="poster" class="poster-preview" style="margin-top:14px">
+    <canvas id="posterCanvas" width="864" height="1296"></canvas>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = s=>document.querySelector(s);
+  const $$ = s=>document.querySelectorAll(s);
+
+  // Elements
+  const topic=$('#topic');
+  const f={blue:$('#note-blue'),green:$('#note-green'),red:$('#note-red'),yellow:$('#note-yellow')};
+  const clocks={blue:$('#clock-blue'),green:$('#clock-green'),red:$('#clock-red'),yellow:$('#clock-yellow')};
+  const pulses={blue:$('#pulse-blue'),green:$('#pulse-green'),red:$('#pulse-red'),yellow:$('#pulse-yellow')};
+  const xpFill=$('#xp-fill'); const levelTxt=$('#level');
+  const posterCanvas=$('#posterCanvas'); const ctx=posterCanvas.getContext('2d');
+
+  // State
+  const timers={}, timerRuns=[], XP={val:0,level:1};
+  const quotes = [
+    "Hard scenes make lasting stories. Your brain prefers the rough cut.",
+    "If it feels too smooth, it’s just a trailer. Find the plot.",
+    "Meaning shows up where the beat fights back.",
+    "Don’t reread the line. Reveal the move.",
+    "Memory loves effort. Give it a reason to stay.",
+    "Contrast is the cut that keeps the audience awake.",
+    "Proof is the close-up. Make it clear, not louder.",
+    "Every claim needs a scene partner.",
+    "If you can teach it in 20 seconds, you own it.",
+    "Done is good. Done-done is legacy."
+  ];
+
+  // Autosave notes to localStorage
+  const LSKEY='noir_decode_v1';
+  function saveLS(){
+    localStorage.setItem(LSKEY, JSON.stringify({
+      topic:topic.value.trim(),
+      notes:{blue:f.blue.value,green:f.green.value,red:f.red.value,yellow:f.yellow.value},
+      savedAt:new Date().toISOString()
+    }));
+  }
+  function loadLS(){
+    const raw=localStorage.getItem(LSKEY); if(!raw) return;
+    try{const d=JSON.parse(raw);
+      topic.value=d.topic||''; if(d.notes){for(const k of Object.keys(f)) f[k].value=d.notes[k]||'';}
+    }catch(e){}
+  }
+  loadLS();
+  [topic,...Object.values(f)].forEach(el=>el.addEventListener('input',saveLS));
+
+  // Timers with BPM pulse (Spotify plays separately in the embed)
+  function pad(n){return String(n).padStart(2,'0')}
+  function startTimer(key,secs){
+    if(timers[key]) clearInterval(timers[key]);
+    pulses[key].classList.add('pulsing');
+    let remain=secs; clocks[key].textContent=`00:${pad(remain)}`;
+    const startedAt=Date.now();
+    timers[key]=setInterval(()=>{
+      remain--;
+      const mm=pad(Math.floor((secs-remain)/60)), ss=pad(remain);
+      clocks[key].textContent=`${mm}:${ss}`;
+      if(remain<=0){
+        clearInterval(timers[key]);
+        pulses[key].classList.remove('pulsing');
+        clocks[key].textContent='✔︎';
+        timerRuns.push({key,secs,startedAt,endedAt:Date.now()});
+        alert('Cut! Say what the author DID.');
+      }
+    },1000);
+  }
+  $$('.btn.t').forEach(btn=>{
+    btn.addEventListener('click',()=>startTimer(btn.dataset.for, parseInt(btn.dataset.t,10)));
+  });
+
+  // Recorder
+  let mediaRecorder, chunks=[], stream;
+  const recStart=$('#rec-start'), recStop=$('#rec-stop'), recStatus=$('#rec-status'), recDot=$('#rec-dot'), audioList=$('#audio-list');
+  async function ensureMic(){
+    if(stream) return stream;
+    stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    return stream;
+  }
+  recStart.addEventListener('click', async ()=>{
+    try{
+      await ensureMic(); chunks=[];
+      mediaRecorder = new MediaRecorder(stream, {mimeType:'audio/webm'});
+      mediaRecorder.ondataavailable=e=>{if(e.data.size>0) chunks.push(e.data);};
+      mediaRecorder.onstop=()=>{
+        const blob=new Blob(chunks,{type:'audio/webm'}), url=URL.createObjectURL(blob);
+        const t=(topic.value.trim()||'VoiceNote').replace(/[^\w\-]+/g,'_');
+        const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+        const name=`${t}_${stamp}.webm`;
+        const row=document.createElement('div');
+        row.innerHTML=`<div>${name}</div><audio controls src="${url}" style="width:100%"></audio>`;
+        audioList.prepend(row);
+        // auto download
+        const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+        recStatus.textContent='Saved'; recDot.style.background='#22c55e';
+        recStart.disabled=false; recStop.disabled=true;
+        bumpXP(22);
+        // reward line
+        alert(quotes[Math.floor(Math.random()*quotes.length)]);
+      };
+      mediaRecorder.start();
+      recStatus.textContent='Recording…'; recDot.style.background='#ef4444';
+      recStart.disabled=true; recStop.disabled=false;
+    }catch(e){ alert('Microphone blocked. Allow mic to record.'); }
+  });
+  recStop.addEventListener('click',()=>{ if(mediaRecorder && mediaRecorder.state!=='inactive') mediaRecorder.stop(); });
+
+  // XP logic
+  function bumpXP(n){
+    XP.val=Math.min(100, XP.val+n);
+    xpFill.style.width=`${XP.val}%`;
+    if(XP.val>=75 && XP.level<4){XP.level=4; levelTxt.textContent='Level 4 — Director’s Cut';}
+    else if(XP.val>=50 && XP.level<3){XP.level=3; levelTxt.textContent='Level 3 — Story Mixer';}
+    else if(XP.val>=25 && XP.level<2){XP.level=2; levelTxt.textContent='Level 2 — Scene Analyst';}
+  }
+
+  // Crash-Out Card builder (canvas poster)
+  function drawPoster(line){
+    const W=posterCanvas.width, H=posterCanvas.height;
+    // Background gradient
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0b0f16'); g.addColorStop(1,'#07090d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // Subtle vignette
+    const vg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,H*0.7);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.55)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    // Title
+    ctx.fillStyle='#d4af37'; ctx.font='900 44px "Bebas Neue", Arial, sans-serif'; ctx.textAlign='left';
+    const title=(topic.value.trim()||'Untitled Scene').toUpperCase();
+    ctx.fillText(title, 64, 120);
+    // Divider
+    ctx.strokeStyle='rgba(212,175,55,.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(64,140); ctx.lineTo(W-64,140); ctx.stroke();
+
+    // Sections
+    ctx.textAlign='left';
+    const sections=[
+      {label:'STORY BEAT', color:'#46a0ff', text:f.blue.value},
+      {label:'EVIDENCE REEL', color:'#32d17e', text:f.green.value},
+      {label:'PLOT TWIST', color:'#ff4d5a', text:f.red.value},
+      {label:'MORAL / IMPACT', color:'#ffd166', text:f.yellow.value}
+    ];
+    let y=200;
+    sections.forEach(s=>{
+      ctx.fillStyle=s.color; ctx.font='700 16px Inter, Arial, sans-serif'; ctx.fillText(s.label,64,y);
+      y+=26;
+      ctx.fillStyle='#dce1e8'; ctx.font='400 22px Inter, Arial, sans-serif';
+      wrap(ctx,s.text||'—',64,y,W-128,28); y+=100;
+    });
+
+    // Quote / Closing
+    ctx.fillStyle='#8b95a7'; ctx.font='700 14px Inter, Arial, sans-serif'; ctx.fillText('CLOSING LINE',64,H-200);
+    ctx.fillStyle='#cfd4dd'; ctx.font='italic 20px Inter, Arial, sans-serif';
+    wrap(ctx, line || 'Learning sticks when the scene gets hard.', 64, H-170, W-128, 26);
+
+    // Footer
+    ctx.fillStyle='#6b7280'; ctx.font='12px Inter, Arial, sans-serif';
+    ctx.fillText(new Date().toLocaleString(), 64, H-40);
+    ctx.textAlign='right'; ctx.fillText('Decode the Author — Noir', W-64, H-40);
+  }
+  function wrap(ctx, text, x, y, maxWidth, lineHeight){
+    if(!text) text='—';
+    const words=String(text).split(/\s+/), lines=[];
+    let line='';
+    for(let n=0;n<words.length;n++){
+      const test=line+words[n]+' ';
+      if(ctx.measureText(test).width>maxWidth && n>0){ lines.push(line); line=words[n]+' '; }
+      else line=test;
+    }
+    lines.push(line);
+    lines.forEach((L,i)=>ctx.fillText(L.trim(), x, y + i*lineHeight));
+  }
+
+  function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+  // Build Crash-Out Card
+  function makeCard(doneDone=false){
+    const line = doneDone
+      ? pick([
+          "Done-done means it lives in your head tomorrow.",
+          "You didn’t just read it. You cut the scene.",
+          "When you can teach it, you keep it.",
+          "You translated the move, not the words.",
+          "Tough beats build durable memory."
+        ])
+      : pick(quotes);
+    drawPoster(line);
+    bumpXP(18);
+  }
+
+  // Buttons
+  $('#finish').addEventListener('click', ()=>makeCard(false));
+  $('#done').addEventListener('click', ()=>{ alert("Saved. Scene wrapped."); makeCard(false); });
+  $('#done-done').addEventListener('click', ()=>{
+    makeCard(true);
+    setTimeout(()=>alert("Done-done. Print or save your poster."),400);
+  });
+
+  // Save JSON
+  $('#save-json').addEventListener('click', ()=>{
+    const payload={
+      topic:topic.value.trim(),
+      notes:{blue:f.blue.value.trim(),green:f.green.value.trim(),red:f.red.value.trim(),yellow:f.yellow.value.trim()},
+      timers:timerRuns,
+      level:XP.level,
+      finishedAt:new Date().toISOString()
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`${(payload.topic||'Scene').replace(/[^\w\-]+/g,'_')}_notes.json`;
+    a.click();
+  });
+
+  // Save PNG
+  $('#save-png').addEventListener('click', ()=>{
+    const a=document.createElement('a');
+    a.href=posterCanvas.toDataURL('image/png');
+    a.download=`${(topic.value.trim()||'Scene').replace(/[^\w\-]+/g,'_')}_poster.png`;
+    a.click();
+  });
+
+  // Print / PDF (use browser’s Save as PDF)
+  $('#print-pdf').addEventListener('click', ()=>{
+    const w=window.open('','_blank','width=900,height=1200');
+    const data=posterCanvas.toDataURL('image/png');
+    w.document.write(`<title>Crash-Out Card</title><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center}img{width:720px;max-width:90vw;}</style><img src="${data}">`);
+    w.document.close();
+    setTimeout(()=>w.print(), 400);
+  });
+
+})();
+</script>
+</body>
+</html>
